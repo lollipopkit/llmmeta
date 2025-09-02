@@ -1,0 +1,21 @@
+[package]
+name = "llmmeta"
+version = "0.1.0"
+edition = "2021"
+description = "自动抓取 models.dev API 数据并生成多语言 SDK 的工具"
+license = "MIT"
+repository = "https://github.com/your-username/llmmeta"
+
+[[bin]]
+name = "llmmeta"
+path = "src/main.rs"
+
+[dependencies]
+tokio = { version = "1.0", features = ["full"] }
+reqwest = { version = "0.11", features = ["json"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+anyhow = "1.0"
+clap = { version = "4.0", features = ["derive"] }
+handlebars = "4.0"
+chrono = { version = "0.4", features = ["serde"] }
