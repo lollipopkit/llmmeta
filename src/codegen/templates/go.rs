@@ -2,7 +2,7 @@ pub const MODELS_TEMPLATE: &str = r#"// LLM Models from models.dev
 // Generated at: {{timestamp}}
 // Total models: {{model_count}}
 
-package main
+package {{go_package_name}}
 
 import "encoding/json"
 
@@ -75,13 +75,9 @@ func init() {
 pub const MAIN_TEMPLATE: &str = r#"// LLM Models SDK for Go
 // Generated from models.dev at: {{timestamp}}
 
-package main
+package {{go_package_name}}
 
-import (
-	"encoding/json"
-	"fmt"
-	"sort"
-)
+import "sort"
 
 // GetAllModels returns all available models
 func GetAllModels() []Model {
@@ -162,22 +158,9 @@ func GetModelsSortedByPrice() []Model {
 
 	return modelsWithPricing
 }
-
-func main() {
-	fmt.Printf("LLM Models SDK for Go\n")
-	fmt.Printf("Total models: %d\n", len(Models))
-
-	functionCallingModels := GetFunctionCallingModels()
-	fmt.Printf("Models with function calling: %d\n", len(functionCallingModels))
-
-	if len(Models) > 0 {
-		jsonData, _ := json.MarshalIndent(Models[0], "", "  ")
-		fmt.Printf("\nFirst model:\n%s\n", jsonData)
-	}
-}
 "#;
 
-pub const GOMOD_TEMPLATE: &str = r#"module llm-models
+pub const GOMOD_TEMPLATE: &str = r#"module {{go_module_path}}
 
 go 1.21
 "#;

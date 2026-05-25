@@ -34,6 +34,18 @@ enum Commands {
         /// 输出目录
         #[arg(short, long, default_value = "output")]
         output: String,
+        /// 包版本号
+        #[arg(long, default_value = codegen::DEFAULT_PACKAGE_VERSION)]
+        package_version: String,
+        /// 仓库 URL
+        #[arg(long, default_value = codegen::DEFAULT_REPOSITORY)]
+        repository: String,
+        /// 生成包名；不传时按语言使用默认值
+        #[arg(long)]
+        package_name: Option<String>,
+        /// Go module import path；仅 Go 生成使用
+        #[arg(long, default_value = codegen::DEFAULT_GO_MODULE)]
+        go_module: String,
     },
     /// 分析和筛选模型数据
     Analyze {
@@ -79,10 +91,20 @@ async fn main() -> Result<()> {
             input,
             lang,
             output,
+            package_version,
+            repository,
+            package_name,
+            go_module,
         } => {
             println!("正在生成 {} 语言的 SDK...", lang);
             let models = api::load_models(input)?;
-            codegen::generate_sdk(&models, lang, output)?;
+            let options = codegen::GenerateOptions {
+                package_version: package_version.clone(),
+                repository: repository.clone(),
+                package_name: package_name.clone(),
+                go_module: go_module.clone(),
+            };
+            codegen::generate_sdk(&models, lang, output, &options)?;
             println!("SDK 已生成到: {}", output);
         }
         Commands::Analyze {

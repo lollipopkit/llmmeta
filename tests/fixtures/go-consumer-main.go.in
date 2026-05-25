@@ -1,0 +1,11 @@
+package main
+
+import (
+	"fmt"
+
+	llmmeta "{{GO_MODULE}}"
+)
+
+func main() {
+	fmt.Println(len(llmmeta.GetAllModels()))
+}
