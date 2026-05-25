@@ -24,24 +24,45 @@ pub async fn fetch_models() -> Result<Vec<Model>> {
 
     // Convert the provider-organized data into a flat list of models
     let mut all_models = Vec::new();
-    for (_provider_key, provider_data) in models_response {
+    for (provider_key, provider_data) in models_response {
+        let (provider_id, provider_name) = provider_identity(&provider_key, &provider_data);
+        let provider = Provider {
+            id: provider_id,
+            name: provider_name,
+            description: None,
+            website: provider_data.api.clone(),
+        };
+
         for (model_id, mut model) in provider_data.models {
             // Ensure the model ID is set
             model.id = model_id;
 
             // Create provider info from the provider data
-            model.provider = Provider {
-                id: provider_data.id.clone(),
-                name: provider_data.name.clone(),
-                description: None,
-                website: provider_data.api.clone(),
-            };
+            model.provider = provider.clone();
 
             all_models.push(model);
         }
     }
 
     Ok(all_models)
+}
+
+fn provider_identity<'a>(
+    provider_key: &'a str,
+    provider_data: &'a crate::models::ProviderData,
+) -> (String, String) {
+    let provider_id = provider_data
+        .id
+        .as_deref()
+        .filter(|id| !id.is_empty())
+        .unwrap_or(provider_key);
+    let provider_name = provider_data
+        .name
+        .as_deref()
+        .filter(|name| !name.is_empty())
+        .unwrap_or(provider_key);
+
+    (provider_id.to_string(), provider_name.to_string())
 }
 
 /// 将模型数据保存到文件
@@ -174,5 +195,51 @@ mod tests {
             loaded[0].provider.website.as_deref(),
             Some("https://api.openai.com")
         );
+    }
+
+    #[test]
+    fn provider_data_can_fall_back_to_map_key_when_id_is_missing() {
+        let json = r#"{
+            "custom-provider": {
+                "name": "Custom Provider",
+                "api": "https://example.com/v1",
+                "models": {
+                    "custom-model": {
+                        "name": "Custom Model"
+                    }
+                }
+            }
+        }"#;
+
+        let parsed: crate::models::ModelsResponse = serde_json::from_str(json).unwrap();
+        let provider = parsed.get("custom-provider").unwrap();
+
+        assert_eq!(provider.id, None);
+        assert_eq!(provider.name.as_deref(), Some("Custom Provider"));
+        assert_eq!(provider.models["custom-model"].id, "");
+    }
+
+    #[test]
+    fn provider_name_can_fall_back_to_map_key_when_name_is_missing() {
+        let json = r#"{
+            "custom-provider": {
+                "id": "custom-provider",
+                "api": "https://example.com/v1",
+                "models": {
+                    "custom-model": {
+                        "name": "Custom Model"
+                    }
+                }
+            }
+        }"#;
+
+        let parsed: crate::models::ModelsResponse = serde_json::from_str(json).unwrap();
+        let provider = parsed.get("custom-provider").unwrap();
+        let (provider_id, provider_name) = provider_identity("custom-provider", provider);
+
+        assert_eq!(provider.id.as_deref(), Some("custom-provider"));
+        assert_eq!(provider.name, None);
+        assert_eq!(provider_id, "custom-provider");
+        assert_eq!(provider_name, "custom-provider");
     }
 }
