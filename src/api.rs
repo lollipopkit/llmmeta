@@ -26,18 +26,19 @@ pub async fn fetch_models() -> Result<Vec<Model>> {
     let mut all_models = Vec::new();
     for (provider_key, provider_data) in models_response {
         let (provider_id, provider_name) = provider_identity(&provider_key, &provider_data);
+        let provider = Provider {
+            id: provider_id,
+            name: provider_name,
+            description: None,
+            website: provider_data.api.clone(),
+        };
 
         for (model_id, mut model) in provider_data.models {
             // Ensure the model ID is set
             model.id = model_id;
 
             // Create provider info from the provider data
-            model.provider = Provider {
-                id: provider_id.to_string(),
-                name: provider_name.to_string(),
-                description: None,
-                website: provider_data.api.clone(),
-            };
+            model.provider = provider.clone();
 
             all_models.push(model);
         }
