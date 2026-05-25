@@ -75,38 +75,42 @@ async fn main() -> Result<()> {
             api::save_models(&models, output)?;
             println!("模型数据已保存到: {}", output);
         }
-        Commands::Generate { input, lang, output } => {
+        Commands::Generate {
+            input,
+            lang,
+            output,
+        } => {
             println!("正在生成 {} 语言的 SDK...", lang);
             let models = api::load_models(input)?;
             codegen::generate_sdk(&models, lang, output)?;
             println!("SDK 已生成到: {}", output);
         }
-        Commands::Analyze { 
-            input, 
-            modality, 
-            function_calling, 
+        Commands::Analyze {
+            input,
+            modality,
+            function_calling,
             reasoning,
             open_source,
-            sort_by_price, 
+            sort_by_price,
             group_by_provider,
-            format 
+            format,
         } => {
             let models = api::load_models(input)?;
-            
+
             // 应用筛选条件
             let mut filtered_models = models.clone();
-            
+
             // 使用专用的筛选函数
             if let Some(ref modal) = modality {
                 let filtered_refs = api::filter_by_modality(&filtered_models, modal);
                 filtered_models = filtered_refs.into_iter().cloned().collect();
             }
-            
+
             if *function_calling {
                 let filtered_refs = api::filter_function_calling_models(&filtered_models);
                 filtered_models = filtered_refs.into_iter().cloned().collect();
             }
-            
+
             // 应用其他筛选条件
             filtered_models.retain(|m| {
                 if *reasoning && !m.has_reasoning() {
@@ -117,14 +121,17 @@ async fn main() -> Result<()> {
                 }
                 true
             });
-            
+
             // 应用排序
             let result_models = if *sort_by_price {
-                api::sort_by_price(&filtered_models).into_iter().cloned().collect()
+                api::sort_by_price(&filtered_models)
+                    .into_iter()
+                    .cloned()
+                    .collect()
             } else {
                 filtered_models
             };
-            
+
             // 显示结果
             if *group_by_provider {
                 display_grouped_models(&result_models, format)?;
@@ -143,13 +150,26 @@ fn display_models(models: &[Model], format: &str) -> Result<()> {
             println!("{}", serde_json::to_string_pretty(models)?);
         }
         "table" => {
-            println!("{:<20} {:<30} {:<15} {:<10} {:<10} {:<15} {:<20} {:<15}", 
-                     "Provider", "Model", "Modalities", "Function", "Reasoning", "Open Source", "Pricing", "Context/Output");
+            println!(
+                "{:<20} {:<30} {:<15} {:<10} {:<10} {:<15} {:<20} {:<15}",
+                "Provider",
+                "Model",
+                "Modalities",
+                "Function",
+                "Reasoning",
+                "Open Source",
+                "Pricing",
+                "Context/Output"
+            );
             println!("{}", "=".repeat(155));
-            
+
             for model in models {
                 let modalities = if let Some(ref mod_data) = model.modalities {
-                    let mut inputs = mod_data.input.as_ref().map(|v| v.join(",")).unwrap_or_default();
+                    let mut inputs = mod_data
+                        .input
+                        .as_ref()
+                        .map(|v| v.join(","))
+                        .unwrap_or_default();
                     if inputs.len() > 10 {
                         inputs.truncate(10);
                         inputs.push_str("...");
@@ -158,36 +178,41 @@ fn display_models(models: &[Model], format: &str) -> Result<()> {
                 } else {
                     "N/A".to_string()
                 };
-                
+
                 let pricing = if let Some((input, output)) = model.get_pricing() {
                     format!("${:.4}/{:.4}", input, output)
                 } else {
                     "N/A".to_string()
                 };
-                
+
                 let limits = match (model.get_context_length(), model.get_output_length()) {
                     (Some(ctx), Some(out)) => format!("{}/{}", ctx, out),
                     (Some(ctx), None) => format!("{}/N/A", ctx),
                     (None, Some(out)) => format!("N/A/{}", out),
                     (None, None) => "N/A/N/A".to_string(),
                 };
-                
-                println!("{:<20} {:<30} {:<15} {:<10} {:<10} {:<15} {:<20} {:<15}",
-                         model.provider.name,
-                         if model.name.len() > 28 {
-                             format!("{}...", &model.name[..25])
-                         } else {
-                             model.name.clone()
-                         },
-                         modalities,
-                         if model.supports_function_calling() { "Yes" } else { "No" },
-                         if model.has_reasoning() { "Yes" } else { "No" },
-                         if model.is_open_source() { "Yes" } else { "No" },
-                         pricing,
-                         limits
+
+                println!(
+                    "{:<20} {:<30} {:<15} {:<10} {:<10} {:<15} {:<20} {:<15}",
+                    model.provider.name,
+                    if model.name.len() > 28 {
+                        format!("{}...", &model.name[..25])
+                    } else {
+                        model.name.clone()
+                    },
+                    modalities,
+                    if model.supports_function_calling() {
+                        "Yes"
+                    } else {
+                        "No"
+                    },
+                    if model.has_reasoning() { "Yes" } else { "No" },
+                    if model.is_open_source() { "Yes" } else { "No" },
+                    pricing,
+                    limits
                 );
             }
-            
+
             println!("\nTotal models: {}", models.len());
         }
         _ => {
@@ -205,10 +230,13 @@ fn display_grouped_models(models: &[Model], format: &str) -> Result<()> {
         }
         "table" => {
             let grouped = api::group_models_by_provider(models);
-            
+
             for (provider, provider_models) in grouped {
                 println!("\n=== {} ({} models) ===", provider, provider_models.len());
-                display_models(&provider_models.into_iter().cloned().collect::<Vec<_>>(), "table")?;
+                display_models(
+                    &provider_models.into_iter().cloned().collect::<Vec<_>>(),
+                    "table",
+                )?;
             }
         }
         _ => {

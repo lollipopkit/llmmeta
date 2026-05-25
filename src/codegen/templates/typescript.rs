@@ -7,25 +7,43 @@ pub const MODELS_TEMPLATE: &str = r#"/**
 export interface Provider {
   id: string;
   name: string;
-  description?: string;
-  website?: string;
+  description?: string | null;
+  website?: string | null;
 }
 
 export interface Model {
   id: string;
   name: string;
-  description?: string;
-  contextLength?: number;
-  outputLength?: number;
-  inputCost?: number;
-  outputCost?: number;
-  releaseDate?: Date;
-  knowledgeCutoff?: string;
+  description?: string | null;
+  contextLength?: number | null;
+  outputLength?: number | null;
+  inputCost?: number | null;
+  outputCost?: number | null;
+  releaseDate?: string | null;
+  knowledgeCutoff?: string | null;
   modalities: string[];
-  reasoning?: boolean;
-  functionCalling?: boolean;
-  toolUse?: boolean;
-  openWeight?: boolean;
+  reasoning?: boolean | null;
+  functionCalling?: boolean | null;
+  toolUse?: boolean | null;
+  openWeight?: boolean | null;
+  provider: Provider;
+}
+
+interface RawModel {
+  id: string;
+  name: string;
+  description: string | null;
+  context_length: number | null;
+  output_length: number | null;
+  input_cost: number | null;
+  output_cost: number | null;
+  release_date: string | null;
+  knowledge_cutoff: string | null;
+  modalities: string[];
+  reasoning: boolean | null;
+  function_calling: boolean | null;
+  tool_use: boolean | null;
+  open_weight: boolean | null;
   provider: Provider;
 }
 
@@ -37,7 +55,8 @@ export class ModelHelper {
   }
 
   getPricing(): [number, number] | null {
-    if (this.model.inputCost !== undefined && this.model.outputCost !== undefined) {
+    if (this.model.inputCost !== undefined && this.model.inputCost !== null &&
+        this.model.outputCost !== undefined && this.model.outputCost !== null) {
       return [this.model.inputCost, this.model.outputCost];
     }
     return null;
@@ -56,33 +75,27 @@ export class ModelHelper {
   }
 }
 
+const modelsJson = {{{models_json_literal}}};
+const rawModels = JSON.parse(modelsJson) as RawModel[];
+
 // All available models
-export const models: Model[] = [
-{{#each models}}
-  {
-    id: '{{id}}',
-    name: '{{name}}',
-    description: {{#if description}}'{{description}}'{{else}}undefined{{/if}},
-    contextLength: {{#if context_length}}{{context_length}}{{else}}undefined{{/if}},
-    outputLength: {{#if output_length}}{{output_length}}{{else}}undefined{{/if}},
-    inputCost: {{#if input_cost}}{{input_cost}}{{else}}undefined{{/if}},
-    outputCost: {{#if output_cost}}{{output_cost}}{{else}}undefined{{/if}},
-    releaseDate: {{#if release_date}}new Date('{{release_date}}'){{else}}undefined{{/if}},
-    knowledgeCutoff: {{#if knowledge_cutoff}}'{{knowledge_cutoff}}'{{else}}undefined{{/if}},
-    modalities: [{{#each modalities}}'{{this}}'{{#unless @last}}, {{/unless}}{{/each}}],
-    reasoning: {{#if reasoning}}{{reasoning}}{{else}}undefined{{/if}},
-    functionCalling: {{#if function_calling}}{{function_calling}}{{else}}undefined{{/if}},
-    toolUse: {{#if tool_use}}{{tool_use}}{{else}}undefined{{/if}},
-    openWeight: {{#if open_weight}}{{open_weight}}{{else}}undefined{{/if}},
-    provider: {
-      id: '{{provider.id}}',
-      name: '{{provider.name}}',
-      description: {{#if provider.description}}'{{provider.description}}'{{else}}undefined{{/if}},
-      website: {{#if provider.website}}'{{provider.website}}'{{else}}undefined{{/if}},
-    },
-  },
-{{/each}}
-];
+export const models: Model[] = rawModels.map((model) => ({
+  id: model.id,
+  name: model.name,
+  description: model.description,
+  contextLength: model.context_length,
+  outputLength: model.output_length,
+  inputCost: model.input_cost,
+  outputCost: model.output_cost,
+  releaseDate: model.release_date,
+  knowledgeCutoff: model.knowledge_cutoff,
+  modalities: model.modalities,
+  reasoning: model.reasoning,
+  functionCalling: model.function_calling,
+  toolUse: model.tool_use,
+  openWeight: model.open_weight,
+  provider: model.provider,
+}));
 
 // Helper function to create ModelHelper instances
 export const createModelHelper = (model: Model): ModelHelper => new ModelHelper(model);
@@ -173,7 +186,7 @@ export function searchModels(query: string): Model[] {
  */
 export function getProviders(): string[] {
   const providerNames = new Set(models.map(model => model.provider.name));
-  return Array.from(providerNames);
+  return Array.from(providerNames).sort();
 }
 
 /**
@@ -188,7 +201,7 @@ export function getModelById(modelId: string): Model | undefined {
  */
 export function getModelsByContextLength(minLength?: number, maxLength?: number): Model[] {
   return models.filter(model => {
-    if (!model.contextLength) return false;
+    if (model.contextLength === undefined || model.contextLength === null) return false;
     if (minLength !== undefined && model.contextLength < minLength) return false;
     if (maxLength !== undefined && model.contextLength > maxLength) return false;
     return true;
@@ -208,7 +221,7 @@ export function getCheapestModel(): Model | undefined {
  */
 export function getLargestContextModels(limit: number = 10): Model[] {
   return models
-    .filter(model => model.contextLength !== undefined)
+    .filter(model => model.contextLength !== undefined && model.contextLength !== null)
     .sort((a, b) => (b.contextLength || 0) - (a.contextLength || 0))
     .slice(0, limit);
 }
@@ -249,5 +262,22 @@ pub const PACKAGE_TEMPLATE: &str = r#"{
   "devDependencies": {
     "typescript": "^5.0.0"
   }
+}
+"#;
+
+pub const TSCONFIG_TEMPLATE: &str = r#"{
+  "compilerOptions": {
+    "target": "ES2020",
+    "module": "ES2020",
+    "moduleResolution": "node",
+    "declaration": true,
+    "outDir": "dist",
+    "rootDir": "src",
+    "strict": true,
+    "skipLibCheck": true
+  },
+  "include": [
+    "src/**/*.ts"
+  ]
 }
 "#;

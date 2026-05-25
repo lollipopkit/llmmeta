@@ -9,7 +9,7 @@ const MODELS_API_URL: &str = "https://models.dev/api.json";
 /// 从 models.dev API 获取模型数据
 pub async fn fetch_models() -> Result<Vec<Model>> {
     let client = Client::new();
-    
+
     let response = client
         .get(MODELS_API_URL)
         .header("User-Agent", "llmmeta/0.1.0")
@@ -28,7 +28,7 @@ pub async fn fetch_models() -> Result<Vec<Model>> {
         for (model_id, mut model) in provider_data.models {
             // Ensure the model ID is set
             model.id = model_id;
-            
+
             // Create provider info from the provider data
             model.provider = Provider {
                 id: provider_data.id.clone(),
@@ -36,7 +36,7 @@ pub async fn fetch_models() -> Result<Vec<Model>> {
                 description: None,
                 website: provider_data.api.clone(),
             };
-            
+
             all_models.push(model);
         }
     }
@@ -46,37 +46,37 @@ pub async fn fetch_models() -> Result<Vec<Model>> {
 
 /// 将模型数据保存到文件
 pub fn save_models(models: &[Model], output_path: &str) -> Result<()> {
-    let json = serde_json::to_string_pretty(models)
-        .context("Failed to serialize models to JSON")?;
-    
-    fs::write(output_path, json)
-        .context("Failed to write models to file")?;
-    
+    let json =
+        serde_json::to_string_pretty(models).context("Failed to serialize models to JSON")?;
+
+    fs::write(output_path, json).context("Failed to write models to file")?;
+
     Ok(())
 }
 
 /// 从文件加载模型数据
 pub fn load_models(input_path: &str) -> Result<Vec<Model>> {
-    let content = fs::read_to_string(input_path)
-        .context("Failed to read models file")?;
-    
-    let models: Vec<Model> = serde_json::from_str(&content)
-        .context("Failed to parse models JSON")?;
-    
+    let content = fs::read_to_string(input_path).context("Failed to read models file")?;
+
+    let models: Vec<Model> =
+        serde_json::from_str(&content).context("Failed to parse models JSON")?;
+
     Ok(models)
 }
 
 /// 按提供商分组模型
-pub fn group_models_by_provider(models: &[Model]) -> std::collections::HashMap<String, Vec<&Model>> {
+pub fn group_models_by_provider(
+    models: &[Model],
+) -> std::collections::HashMap<String, Vec<&Model>> {
     let mut grouped = std::collections::HashMap::new();
-    
+
     for model in models {
         grouped
             .entry(model.provider.name.clone())
             .or_insert_with(Vec::new)
             .push(model);
     }
-    
+
     grouped
 }
 
@@ -99,19 +99,80 @@ pub fn filter_function_calling_models(models: &[Model]) -> Vec<&Model> {
 /// 按价格排序模型（从低到高）
 pub fn sort_by_price(models: &[Model]) -> Vec<&Model> {
     let mut sorted: Vec<&Model> = models.iter().collect();
-    
-    sorted.sort_by(|a, b| {
-        match (a.get_pricing(), b.get_pricing()) {
-            (Some((a_in, a_out)), Some((b_in, b_out))) => {
-                let a_total = a_in + a_out;
-                let b_total = b_in + b_out;
-                a_total.partial_cmp(&b_total).unwrap_or(std::cmp::Ordering::Equal)
-            }
-            (Some(_), None) => std::cmp::Ordering::Less,
-            (None, Some(_)) => std::cmp::Ordering::Greater,
-            (None, None) => std::cmp::Ordering::Equal,
+
+    sorted.sort_by(|a, b| match (a.get_pricing(), b.get_pricing()) {
+        (Some((a_in, a_out)), Some((b_in, b_out))) => {
+            let a_total = a_in + a_out;
+            let b_total = b_in + b_out;
+            a_total
+                .partial_cmp(&b_total)
+                .unwrap_or(std::cmp::Ordering::Equal)
         }
+        (Some(_), None) => std::cmp::Ordering::Less,
+        (None, Some(_)) => std::cmp::Ordering::Greater,
+        (None, None) => std::cmp::Ordering::Equal,
     });
-    
+
     sorted
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::models::{Cost, Limit, Modalities};
+
+    fn sample_model() -> Model {
+        Model {
+            id: "gpt-test".to_string(),
+            name: "GPT Test".to_string(),
+            attachment: Some(true),
+            reasoning: Some(true),
+            temperature: Some(false),
+            tool_call: Some(true),
+            knowledge: Some("2024-01".to_string()),
+            release_date: Some("2024-02-03".to_string()),
+            last_updated: Some("2024-02-04".to_string()),
+            modalities: Some(Modalities {
+                input: Some(vec!["text".to_string(), "image".to_string()]),
+                output: Some(vec!["text".to_string()]),
+            }),
+            open_weights: Some(false),
+            cost: Some(Cost {
+                input: Some(1.0),
+                output: Some(2.0),
+                cache_read: None,
+                cache_write: None,
+            }),
+            limit: Some(Limit {
+                context: Some(128000),
+                output: Some(4096),
+            }),
+            provider: Provider {
+                id: "openai".to_string(),
+                name: "OpenAI".to_string(),
+                description: None,
+                website: Some("https://api.openai.com".to_string()),
+            },
+        }
+    }
+
+    #[test]
+    fn saved_models_keep_provider_when_loaded() {
+        let path = std::env::temp_dir().join(format!(
+            "llmmeta-provider-roundtrip-{}.json",
+            std::process::id()
+        ));
+        let path_string = path.to_string_lossy().into_owned();
+
+        save_models(&[sample_model()], &path_string).unwrap();
+        let loaded = load_models(&path_string).unwrap();
+        let _ = std::fs::remove_file(path);
+
+        assert_eq!(loaded[0].provider.id, "openai");
+        assert_eq!(loaded[0].provider.name, "OpenAI");
+        assert_eq!(
+            loaded[0].provider.website.as_deref(),
+            Some("https://api.openai.com")
+        );
+    }
 }

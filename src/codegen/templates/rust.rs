@@ -2,8 +2,8 @@ pub const MODELS_TEMPLATE: &str = r#"//! LLM Models from models.dev
 //! Generated at: {{timestamp}}
 //! Total models: {{model_count}}
 
-use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
+use std::sync::LazyLock;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Model {
@@ -14,7 +14,7 @@ pub struct Model {
     pub output_length: Option<u32>,
     pub input_cost: Option<f64>,
     pub output_cost: Option<f64>,
-    pub release_date: Option<DateTime<Utc>>,
+    pub release_date: Option<String>,
     pub knowledge_cutoff: Option<String>,
     pub modalities: Vec<String>,
     pub reasoning: Option<bool>,
@@ -34,7 +34,7 @@ pub struct Provider {
 
 impl Model {
     pub fn supports_modality(&self, modality: &str) -> bool {
-        self.modalities.contains(&modality.to_string())
+        self.modalities.iter().any(|item| item == modality)
     }
 
     pub fn get_pricing(&self) -> Option<(f64, f64)> {
@@ -57,33 +57,22 @@ impl Model {
     }
 }
 
-/// All available models
-pub const MODELS: &[Model] = &[
-{{#each models}}
-    Model {
-        id: "{{id}}".to_string(),
-        name: "{{name}}".to_string(),
-        description: {{#if description}}Some("{{description}}".to_string()){{else}}None{{/if}},
-        context_length: {{#if context_length}}Some({{context_length}}){{else}}None{{/if}},
-        output_length: {{#if output_length}}Some({{output_length}}){{else}}None{{/if}},
-        input_cost: {{#if input_cost}}Some({{input_cost}}){{else}}None{{/if}},
-        output_cost: {{#if output_cost}}Some({{output_cost}}){{else}}None{{/if}},
-        release_date: {{#if release_date}}Some("{{release_date}}".parse().unwrap()){{else}}None{{/if}},
-        knowledge_cutoff: {{#if knowledge_cutoff}}Some("{{knowledge_cutoff}}".to_string()){{else}}None{{/if}},
-        modalities: vec![{{~#if modalities~}}{{~#if modalities.input~}}{{#each modalities.input}}"{{this}}"{{#unless @last}}, {{/unless}}{{/each}}{{~/if~}}{{~#if modalities.output~}}{{#unless modalities.input}}{{/unless}}{{#if modalities.input}}, {{/if}}{{#each modalities.output}}"{{this}}"{{#unless @last}}, {{/unless}}{{/each}}{{~/if~}}{{~/if~}}].into_iter().map(String::from).collect(),
-        reasoning: {{#if reasoning}}Some({{reasoning}}){{else}}None{{/if}},
-        function_calling: {{#if function_calling}}Some({{function_calling}}){{else}}None{{/if}},
-        tool_use: {{#if tool_use}}Some({{tool_use}}){{else}}None{{/if}},
-        open_weight: {{#if open_weight}}Some({{open_weight}}){{else}}None{{/if}},
-        provider: Provider {
-            id: "{{provider.id}}".to_string(),
-            name: "{{provider.name}}".to_string(),
-            description: {{#if provider.description}}Some("{{provider.description}}".to_string()){{else}}None{{/if}},
-            website: {{#if provider.website}}Some("{{provider.website}}".to_string()){{else}}None{{/if}},
-        },
-    },
-{{/each}}
-];
+const MODELS_JSON: &str = {{{models_json_literal}}};
+
+/// All available models.
+pub static MODELS: LazyLock<Vec<Model>> = LazyLock::new(|| {
+    serde_json::from_str(MODELS_JSON).expect("generated models JSON should be valid")
+});
+
+#[cfg(test)]
+mod tests {
+    use super::MODELS;
+
+    #[test]
+    fn generated_models_json_loads() {
+        assert!(!MODELS.is_empty());
+    }
+}
 "#;
 
 pub const LIB_TEMPLATE: &str = r#"//! LLM Models SDK for Rust
@@ -95,7 +84,7 @@ pub use models::{Model, Provider, MODELS};
 
 /// Get all models
 pub fn get_all_models() -> &'static [Model] {
-    MODELS
+    &MODELS
 }
 
 /// Get models by provider name
@@ -149,5 +138,5 @@ repository = "https://github.com/your-username/llm-models-rust"
 
 [dependencies]
 serde = { version = "1.0", features = ["derive"] }
-chrono = { version = "0.4", features = ["serde"] }
+serde_json = "1.0"
 "#;

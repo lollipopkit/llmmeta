@@ -39,7 +39,7 @@ pub struct Model {
     pub open_weights: Option<bool>,
     pub cost: Option<Cost>,
     pub limit: Option<Limit>,
-    #[serde(skip_deserializing, default = "default_provider")]
+    #[serde(default = "default_provider")]
     pub provider: Provider,
 }
 
