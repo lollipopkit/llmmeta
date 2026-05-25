@@ -2,6 +2,8 @@ pub const MODELS_TEMPLATE: &str = r#"/// LLM Models from models.dev
 /// Generated at: {{timestamp}}
 /// Total models: {{model_count}}
 
+import 'dart:convert';
+
 class Model {
   final String id;
   final String name;
@@ -10,7 +12,7 @@ class Model {
   final int? outputLength;
   final double? inputCost;
   final double? outputCost;
-  final DateTime? releaseDate;
+  final String? releaseDate;
   final String? knowledgeCutoff;
   final List<String> modalities;
   final bool? reasoning;
@@ -67,13 +69,11 @@ class Model {
       description: json['description'],
       contextLength: json['context_length'],
       outputLength: json['output_length'],
-      inputCost: json['input_cost']?.toDouble(),
-      outputCost: json['output_cost']?.toDouble(),
-      releaseDate: json['release_date'] != null 
-          ? DateTime.parse(json['release_date']) 
-          : null,
+      inputCost: (json['input_cost'] as num?)?.toDouble(),
+      outputCost: (json['output_cost'] as num?)?.toDouble(),
+      releaseDate: json['release_date'],
       knowledgeCutoff: json['knowledge_cutoff'],
-      modalities: List<String>.from(json['modalities'] ?? []),
+      modalities: List<String>.from(json['modalities'] ?? const []),
       reasoning: json['reasoning'],
       functionCalling: json['function_calling'],
       toolUse: json['tool_use'],
@@ -91,7 +91,7 @@ class Model {
       'output_length': outputLength,
       'input_cost': inputCost,
       'output_cost': outputCost,
-      'release_date': releaseDate?.toIso8601String(),
+      'release_date': releaseDate,
       'knowledge_cutoff': knowledgeCutoff,
       'modalities': modalities,
       'reasoning': reasoning,
@@ -135,33 +135,17 @@ class Provider {
   }
 }
 
+const String _modelsJson = {{{models_json_literal_dart}}};
+
+List<Model> _loadModels() {
+  final decoded = jsonDecode(_modelsJson) as List<dynamic>;
+  return List.unmodifiable(decoded
+      .map((item) => Model.fromJson(item as Map<String, dynamic>))
+      .toList(growable: false));
+}
+
 /// All available models
-const List<Model> models = [
-{{#each models}}
-  Model(
-    id: '{{id}}',
-    name: '{{name}}',
-    description: {{#if description}}'{{description}}'{{else}}null{{/if}},
-    contextLength: {{#if context_length}}{{context_length}}{{else}}null{{/if}},
-    outputLength: {{#if output_length}}{{output_length}}{{else}}null{{/if}},
-    inputCost: {{#if input_cost}}{{input_cost}}{{else}}null{{/if}},
-    outputCost: {{#if output_cost}}{{output_cost}}{{else}}null{{/if}},
-    releaseDate: {{#if release_date}}DateTime.parse('{{release_date}}'){{else}}null{{/if}},
-    knowledgeCutoff: {{#if knowledge_cutoff}}'{{knowledge_cutoff}}'{{else}}null{{/if}},
-    modalities: [{{#each modalities}}'{{this}}'{{#unless @last}}, {{/unless}}{{/each}}],
-    reasoning: {{#if reasoning}}{{reasoning}}{{else}}null{{/if}},
-    functionCalling: {{#if function_calling}}{{function_calling}}{{else}}null{{/if}},
-    toolUse: {{#if tool_use}}{{tool_use}}{{else}}null{{/if}},
-    openWeight: {{#if open_weight}}{{open_weight}}{{else}}null{{/if}},
-    provider: Provider(
-      id: '{{provider.id}}',
-      name: '{{provider.name}}',
-      description: {{#if provider.description}}'{{provider.description}}'{{else}}null{{/if}},
-      website: {{#if provider.website}}'{{provider.website}}'{{else}}null{{/if}},
-    ),
-  ),
-{{/each}}
-];
+final List<Model> models = _loadModels();
 "#;
 
 pub const LIB_TEMPLATE: &str = r#"/// LLM Models SDK for Dart

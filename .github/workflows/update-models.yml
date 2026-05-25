@@ -40,108 +40,48 @@ jobs:
     - name: Fetch latest models data
       run: ./target/release/llmmeta fetch --output models.json
     
-    - name: Check if models data changed
-      id: check_changes
-      run: |
-        if git diff --quiet models.json; then
-          echo "changed=false" >> $GITHUB_OUTPUT
-        else
-          echo "changed=true" >> $GITHUB_OUTPUT
-        fi
-    
     - name: Generate Rust SDK
-      if: steps.check_changes.outputs.changed == 'true'
       run: |
-        mkdir -p output/rust
-        ./target/release/llmmeta generate --input models.json --lang rust --output output/rust
+        mkdir -p sdks/rust
+        ./target/release/llmmeta generate --input models.json --lang rust --output sdks/rust
     
     - name: Generate Dart SDK  
-      if: steps.check_changes.outputs.changed == 'true'
       run: |
-        mkdir -p output/dart
-        ./target/release/llmmeta generate --input models.json --lang dart --output output/dart
+        mkdir -p sdks/dart
+        ./target/release/llmmeta generate --input models.json --lang dart --output sdks/dart
     
     - name: Generate Go SDK
-      if: steps.check_changes.outputs.changed == 'true'
       run: |
-        mkdir -p output/go
-        ./target/release/llmmeta generate --input models.json --lang go --output output/go
+        mkdir -p sdks/go
+        ./target/release/llmmeta generate --input models.json --lang go --output sdks/go
     
     - name: Generate Python SDK
-      if: steps.check_changes.outputs.changed == 'true'
       run: |
-        mkdir -p output/python
-        ./target/release/llmmeta generate --input models.json --lang python --output output/python
+        mkdir -p sdks/python
+        ./target/release/llmmeta generate --input models.json --lang python --output sdks/python
     
     - name: Generate TypeScript SDK
-      if: steps.check_changes.outputs.changed == 'true'
       run: |
-        mkdir -p output/typescript
-        ./target/release/llmmeta generate --input models.json --lang typescript --output output/typescript
+        mkdir -p sdks/typescript
+        ./target/release/llmmeta generate --input models.json --lang typescript --output sdks/typescript
     
-    - name: Commit models.json changes to main
+    - name: Check if generated files changed
+      id: check_changes
+      run: |
+        if [ -n "$(git status --porcelain -- models.json sdks)" ]; then
+          echo "changed=true" >> $GITHUB_OUTPUT
+        else
+          echo "changed=false" >> $GITHUB_OUTPUT
+        fi
+    
+    - name: Commit models and SDKs to main
       if: steps.check_changes.outputs.changed == 'true'
       run: |
         git config user.name 'github-actions[bot]'
         git config user.email 'github-actions[bot]@users.noreply.github.com'
-        git add models.json
-        git commit -m "update: latest models data from models.dev $(date -I)"
+        git add models.json sdks
+        git commit -m "update: latest models data and SDKs $(date -I)"
         git push origin main
-    
-    - name: Update Rust SDK branch
-      if: steps.check_changes.outputs.changed == 'true'
-      run: |
-        git checkout -B sdk/rust
-        rm -rf output/rust/.git
-        cp -r output/rust/* .
-        git add .
-        git commit -m "update: Rust SDK $(date -I)" || true
-        git push origin sdk/rust --force
-        git checkout main
-    
-    - name: Update Dart SDK branch
-      if: steps.check_changes.outputs.changed == 'true'
-      run: |
-        git checkout -B sdk/dart
-        rm -rf output/dart/.git
-        cp -r output/dart/* .
-        git add .
-        git commit -m "update: Dart SDK $(date -I)" || true
-        git push origin sdk/dart --force
-        git checkout main
-    
-    - name: Update Go SDK branch
-      if: steps.check_changes.outputs.changed == 'true'
-      run: |
-        git checkout -B sdk/go
-        rm -rf output/go/.git
-        cp -r output/go/* .
-        git add .
-        git commit -m "update: Go SDK $(date -I)" || true
-        git push origin sdk/go --force
-        git checkout main
-    
-    - name: Update Python SDK branch
-      if: steps.check_changes.outputs.changed == 'true'
-      run: |
-        git checkout -B sdk/python
-        rm -rf output/python/.git
-        cp -r output/python/* .
-        git add .
-        git commit -m "update: Python SDK $(date -I)" || true
-        git push origin sdk/python --force
-        git checkout main
-    
-    - name: Update TypeScript SDK branch
-      if: steps.check_changes.outputs.changed == 'true'
-      run: |
-        git checkout -B sdk/typescript
-        rm -rf output/typescript/.git
-        cp -r output/typescript/* .
-        git add .
-        git commit -m "update: TypeScript SDK $(date -I)" || true
-        git push origin sdk/typescript --force
-        git checkout main
     
     - name: Create Release
       if: steps.check_changes.outputs.changed == 'true'
@@ -156,13 +96,13 @@ jobs:
           
           Changes:
           - Updated models.json with latest data
-          - Generated fresh SDKs for all supported languages
+          - Generated fresh SDKs for all supported languages under sdks/
           
-          SDK Branches:
-          - [Rust SDK](../../tree/sdk/rust)
-          - [Dart SDK](../../tree/sdk/dart) 
-          - [Go SDK](../../tree/sdk/go)
-          - [Python SDK](../../tree/sdk/python)
-          - [TypeScript SDK](../../tree/sdk/typescript)
+          SDK Paths:
+          - sdks/rust
+          - sdks/dart
+          - sdks/go
+          - sdks/python
+          - sdks/typescript
         draft: false
         prerelease: false

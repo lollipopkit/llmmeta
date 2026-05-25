@@ -1,41 +1,203 @@
 # LLM Meta
 
-自动抓取 <https://models.dev/api.json> 中的模型信息，并生成对应的 rust、dart、golang、python、typescript 模板代码。
+[中文文档](README.zh.md)
 
-便于快速获取模型信息。
+LLM Meta fetches model metadata from <https://models.dev/api.json> and publishes generated SDK code for Rust, Dart, Go, Python, and TypeScript.
 
-## 数据源信息
+Use it when your application needs an up-to-date local catalog of LLM models, providers, modalities, context limits, pricing, reasoning support, function calling support, and open-weight status.
 
-### 支持的模型提供商
+## Using the SDKs
 
-基于 models.dev API 数据，支持以下主要 AI 模型提供商：
+Generated SDKs are committed to this repository under `sdks/`:
 
-- **OpenAI**: GPT-4o, GPT-4 系列, GPT-3.5, o1 系列
-- **Anthropic**: Claude 3.5 Sonnet, Claude 3 系列, Claude Haiku
-- **Google**: Gemini Pro/Flash, Vertex AI 系列
-- **Meta**: Llama 3.1/3.2 系列
-- **Mistral AI**: Mistral Large, Codestral, Pixtral
-- **xAI**: Grok 系列
-- **DeepSeek**: DeepSeek Coder, DeepSeek Chat
-- **Zhipu AI**: GLM 4 系列
-- **Alibaba**: Qwen 系列
-- **其他**: Cohere, Together AI, Perplexity, Fireworks 等
+```text
+sdks/rust
+sdks/dart
+sdks/go
+sdks/python
+sdks/typescript
+```
 
-### 模型信息包含
+You can vendor the SDK directory you need, copy it into your project, or depend on this repository through your package manager or Git tooling.
 
-每个模型的详细信息包括：
+### Rust
 
-- **基本信息**: 模型名称、发布日期、知识截止日期
-- **能力特性**: 输入/输出模态（文本、图像、音频、视频）
-- **技术规格**: 上下文长度、输出令牌限制
-- **定价信息**: 输入/输出令牌价格
-- **特殊能力**: 推理能力、函数调用、工具使用
-- **开源状态**: 是否开放权重
+Use `sdks/rust` as a Rust crate:
 
-## 功能特性
+```toml
+[dependencies]
+llm-models = { path = "sdks/rust" }
+```
 
-- 🔄 自动同步 models.dev 最新模型数据，使用 GitHub Actions 自动更新
-- 📊 支持多种编程语言的代码生成
-- 🏷️ 结构化模型信息提取
-- 💰 价格信息对比分析
-- 🎯 多模态能力检索
+```rust
+use llm_models::{get_function_calling_models, get_models_by_modality};
+
+fn main() {
+    let image_models = get_models_by_modality("image");
+    let tool_models = get_function_calling_models();
+
+    println!("image-capable models: {}", image_models.len());
+    println!("function-calling models: {}", tool_models.len());
+}
+```
+
+### Python
+
+Use `sdks/python` as a local Python package:
+
+```sh
+pip install ./sdks/python
+```
+
+```python
+import llm_models
+
+image_models = llm_models.get_models_by_modality("image")
+cheapest = llm_models.get_models_sorted_by_price()[0]
+
+print(len(image_models))
+print(cheapest.name, cheapest.provider.name)
+```
+
+### TypeScript
+
+Use `sdks/typescript` as a local package:
+
+```sh
+npm install ./sdks/typescript
+```
+
+```ts
+import { getModelsByProvider, getLargestContextModels } from "llm-models";
+
+const openAIModels = getModelsByProvider("OpenAI");
+const largestContext = getLargestContextModels(5);
+
+console.log(openAIModels.length);
+console.log(largestContext.map((model) => model.name));
+```
+
+### Go
+
+Use `sdks/go` as a Go module:
+
+```sh
+cd sdks/go
+go test ./...
+```
+
+The generated Go SDK currently uses package `main`, so the simplest consumption path is to vendor or copy the generated files into your Go project and call helpers such as `GetAllModels`, `GetModelsByProvider`, and `GetModelsSortedByPrice`.
+
+```go
+models := GetModelsByModality("image")
+fmt.Println(len(models))
+```
+
+### Dart
+
+Use `sdks/dart` as a local Dart package:
+
+```yaml
+dependencies:
+  llm_models:
+    path: sdks/dart
+```
+
+```dart
+import 'package:llm_models/llm_models.dart';
+
+void main() {
+  final imageModels = getModelsByModality('image');
+  final openSourceModels = getOpenSourceModels();
+
+  print(imageModels.length);
+  print(openSourceModels.length);
+}
+```
+
+## Common Queries
+
+Every generated SDK exposes helpers for common model lookups:
+
+- Get all models.
+- Filter models by provider.
+- Filter models by modality.
+- Find function-calling models.
+- Find reasoning-capable models.
+- Find open-weight models.
+- Sort models by price.
+
+## Features
+
+- Fetch the latest model data from models.dev.
+- Generate SDKs for Rust, Dart, Go, Python, and TypeScript.
+- Analyze and filter models by modality, function calling, reasoning support, open-weight status, provider, and price.
+- Keep generated SDKs in `sdks/` through the GitHub Actions workflow.
+- Run local checks through the included `Makefile`.
+
+## Data Source
+
+LLM Meta uses the models.dev API as its source of truth.
+
+The dataset includes model information such as:
+
+- Basic metadata: model name, release date, and knowledge cutoff.
+- Capabilities: input and output modalities such as text, image, audio, video, and PDF.
+- Limits: context length and output token limits.
+- Pricing: input and output token pricing when available.
+- Special capabilities: reasoning, function calling, and tool use.
+- Open-weight status.
+- Provider metadata.
+
+## CLI Usage
+
+Fetch the latest model data:
+
+```sh
+cargo run -- fetch --output models.json
+```
+
+Analyze local model data:
+
+```sh
+cargo run -- analyze --input models.json --group-by-provider
+cargo run -- analyze --input models.json --modality image --function-calling
+cargo run -- analyze --input models.json --open-source --sort-by-price
+```
+
+Generate an SDK:
+
+```sh
+cargo run -- generate --input models.json --lang rust --output sdks/rust
+cargo run -- generate --input models.json --lang python --output sdks/python
+```
+
+Supported language values:
+
+- `rust` or `rs`
+- `dart`
+- `go` or `golang`
+- `python` or `py`
+- `typescript` or `ts`
+
+When model data or generated SDK files change, the workflow commits `models.json` and `sdks/` to `main` in a single commit.
+
+## Development
+
+Run the standard local checks:
+
+```sh
+make ci
+```
+
+Generate and verify all SDKs locally:
+
+```sh
+make verify-generated
+```
+
+Temporary generated files are written under `/private/tmp/llmmeta` by default. You can override this path:
+
+```sh
+make verify-generated TMP_DIR=/tmp/llmmeta
+```
