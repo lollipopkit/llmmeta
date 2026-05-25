@@ -200,6 +200,11 @@ pub fn generate_sdk(
         .trim_end_matches('/');
     let go_module_path = trimmed_or_default(&options.go_module, DEFAULT_GO_MODULE, "go module")
         .trim_end_matches('/');
+    let package_version = trimmed_or_default(
+        &options.package_version,
+        DEFAULT_PACKAGE_VERSION,
+        "package version",
+    );
     let go_package_name = sanitize_go_package_name(package_name);
     let repository_directory = sdk_repository_directory(&language);
     let package_homepage = format!("{repository}/tree/main/{repository_directory}");
@@ -214,7 +219,7 @@ pub fn generate_sdk(
         "model_count": models.len(),
         "providers": crate::api::group_models_by_provider(models).keys().collect::<Vec<_>>(),
         "package_name": package_name,
-        "package_version": options.package_version,
+        "package_version": package_version,
         "repository": repository,
         "repository_directory": repository_directory,
         "package_homepage": package_homepage,
@@ -243,7 +248,7 @@ pub fn generate_sdk(
         &language,
         output_path,
         package_name,
-        &options.package_version,
+        package_version,
         go_module_path,
     )?;
 
@@ -463,6 +468,7 @@ fn generate_package_file(
 mod tests {
     use super::*;
     use crate::models::{Cost, Limit, Modalities};
+    use std::time::{SystemTime, UNIX_EPOCH};
 
     fn sample_model() -> Model {
         Model {
@@ -514,5 +520,35 @@ mod tests {
         assert_eq!(model.knowledge_cutoff, Some("2024-01"));
         assert_eq!(model.modalities, vec!["text", "image"]);
         assert_eq!(model.provider.name, "OpenAI");
+    }
+
+    #[test]
+    fn generate_sdk_uses_default_for_blank_package_version() {
+        let output_dir = std::env::temp_dir().join(format!(
+            "llmmeta-blank-version-test-{}",
+            SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .expect("system time should be after unix epoch")
+                .as_nanos()
+        ));
+        let options = GenerateOptions {
+            package_version: "   ".to_string(),
+            ..GenerateOptions::default()
+        };
+
+        generate_sdk(
+            &[sample_model()],
+            "rust",
+            output_dir.to_str().unwrap(),
+            &options,
+        )
+        .expect("rust SDK should generate with default package version");
+
+        let cargo_toml = fs::read_to_string(output_dir.join("Cargo.toml"))
+            .expect("generated Cargo.toml should be readable");
+        assert!(cargo_toml.contains(&format!("version = \"{DEFAULT_PACKAGE_VERSION}\"")));
+        assert!(!cargo_toml.contains("version = \"   \""));
+
+        fs::remove_dir_all(output_dir).expect("test output directory should be removable");
     }
 }
