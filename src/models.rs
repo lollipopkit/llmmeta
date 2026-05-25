@@ -15,8 +15,8 @@ pub type ModelsResponse = HashMap<String, ProviderData>;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ProviderData {
-    pub id: String,
-    pub name: String,
+    pub id: Option<String>,
+    pub name: Option<String>,
     pub api: Option<String>,
     pub doc: Option<String>,
     pub npm: Option<String>,
@@ -26,6 +26,7 @@ pub struct ProviderData {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Model {
+    #[serde(default)]
     pub id: String,
     pub name: String,
     pub attachment: Option<bool>,
@@ -65,7 +66,9 @@ pub struct Limit {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Provider {
+    #[serde(default)]
     pub id: String,
+    #[serde(default)]
     pub name: String,
     pub description: Option<String>,
     pub website: Option<String>,
