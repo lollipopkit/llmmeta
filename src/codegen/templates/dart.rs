@@ -201,9 +201,17 @@ List<Model> getModelsSortedByPrice() {
 }
 "#;
 
-pub const PUBSPEC_TEMPLATE: &str = r#"name: llm_models
+pub const PUBSPEC_TEMPLATE: &str = r#"name: {{package_name}}
+version: {{package_version}}
 description: LLM models data from models.dev
-version: 0.1.0
+homepage: {{package_homepage}}
+repository: {{repository}}
+issue_tracker: {{package_issues}}
+topics:
+  - llm
+  - ai
+  - models
+  - metadata
 
 environment:
   sdk: '>=3.0.0 <4.0.0'

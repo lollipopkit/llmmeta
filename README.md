@@ -18,7 +18,7 @@ sdks/python
 sdks/typescript
 ```
 
-You can vendor the SDK directory you need, copy it into your project, or depend on this repository through your package manager or Git tooling.
+You can vendor the SDK directory you need, copy it into your project, or publish the generated package directories to their registries.
 
 ### Rust
 
@@ -26,8 +26,10 @@ Use `sdks/rust` as a Rust crate:
 
 ```toml
 [dependencies]
-llm-models = { path = "sdks/rust" }
+llm-models = "0.1"
 ```
+
+The generated `sdks/rust/Cargo.toml` includes crates.io metadata, so it can be published with `cargo publish` from that directory.
 
 ```rust
 use llm_models::{get_function_calling_models, get_models_by_modality};
@@ -64,7 +66,7 @@ print(cheapest.name, cheapest.provider.name)
 Use `sdks/typescript` as a local package:
 
 ```sh
-npm install ./sdks/typescript
+npm install llm-models
 ```
 
 ```ts
@@ -82,15 +84,30 @@ console.log(largestContext.map((model) => model.name));
 Use `sdks/go` as a Go module:
 
 ```sh
-cd sdks/go
-go test ./...
+go get github.com/lollipopkit/llmmeta/sdks/go
 ```
 
-The generated Go SDK currently uses package `main`, so the simplest consumption path is to vendor or copy the generated files into your Go project and call helpers such as `GetAllModels`, `GetModelsByProvider`, and `GetModelsSortedByPrice`.
+The generated Go SDK is an importable library package. By default its module path is `github.com/lollipopkit/llmmeta/sdks/go`; override it during generation with `--go-module`.
 
 ```go
-models := GetModelsByModality("image")
-fmt.Println(len(models))
+package main
+
+import (
+    "fmt"
+
+    llmmeta "github.com/lollipopkit/llmmeta/sdks/go"
+)
+
+func main() {
+    models := llmmeta.GetModelsByModality("image")
+    fmt.Println(len(models))
+}
+```
+
+If you want a shorter import such as `import "xxx"`, generate the SDK with that module path:
+
+```sh
+cargo run -- generate --input models.json --lang go --output sdks/go --go-module xxx
 ```
 
 ### Dart
@@ -100,7 +117,7 @@ Use `sdks/dart` as a local Dart package:
 ```yaml
 dependencies:
   llm_models:
-    path: sdks/dart
+    ^0.1.0
 ```
 
 ```dart
@@ -170,6 +187,7 @@ Generate an SDK:
 ```sh
 cargo run -- generate --input models.json --lang rust --output sdks/rust
 cargo run -- generate --input models.json --lang python --output sdks/python
+cargo run -- generate --input models.json --lang go --output sdks/go --go-module github.com/lollipopkit/llmmeta/sdks/go
 ```
 
 Supported language values:
@@ -181,6 +199,15 @@ Supported language values:
 - `typescript` or `ts`
 
 When model data or generated SDK files change, the workflow commits `models.json` and `sdks/` to `main` in a single commit.
+
+Publishing metadata can be customized at generation time:
+
+```sh
+cargo run -- generate --input models.json --lang typescript --output sdks/typescript \
+  --package-name @your-scope/llm-models \
+  --package-version 0.1.0 \
+  --repository https://github.com/your-org/llmmeta
+```
 
 ## Development
 
@@ -194,6 +221,12 @@ Generate and verify all SDKs locally:
 
 ```sh
 make verify-generated
+```
+
+Run registry-oriented dry-runs for the publishable SDKs:
+
+```sh
+make verify-publish-generated
 ```
 
 Temporary generated files are written under `/private/tmp/llmmeta` by default. You can override this path:

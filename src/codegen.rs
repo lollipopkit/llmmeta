@@ -9,6 +9,36 @@ use crate::models::{Model, Provider};
 
 mod templates;
 
+pub const DEFAULT_PACKAGE_VERSION: &str = "0.1.0";
+pub const DEFAULT_REPOSITORY: &str = "https://github.com/lollipopkit/llmmeta";
+pub const DEFAULT_GO_MODULE: &str = "github.com/lollipopkit/llmmeta/sdks/go";
+pub const DEFAULT_RUST_PACKAGE_NAME: &str = "llm-models";
+pub const DEFAULT_DART_PACKAGE_NAME: &str = "llm_models";
+pub const DEFAULT_GO_PACKAGE_NAME: &str = "llmmeta";
+pub const DEFAULT_PYTHON_PACKAGE_NAME: &str = "llm-models";
+pub const DEFAULT_TYPESCRIPT_PACKAGE_NAME: &str = "llm-models";
+pub const PYTHON_IMPORT_PACKAGE_NAME: &str = "llm_models";
+
+/// SDK generation options that affect package publishing metadata.
+#[derive(Debug, Clone)]
+pub struct GenerateOptions {
+    pub package_version: String,
+    pub repository: String,
+    pub package_name: Option<String>,
+    pub go_module: String,
+}
+
+impl Default for GenerateOptions {
+    fn default() -> Self {
+        Self {
+            package_version: DEFAULT_PACKAGE_VERSION.to_string(),
+            repository: DEFAULT_REPOSITORY.to_string(),
+            package_name: None,
+            go_module: DEFAULT_GO_MODULE.to_string(),
+        }
+    }
+}
+
 /// 支持的编程语言
 #[derive(Debug, Clone)]
 pub enum Language {
@@ -69,10 +99,35 @@ impl Language {
             Language::TypeScript => Some("package.json"),
         }
     }
+
+    pub fn default_package_name(&self) -> &'static str {
+        match self {
+            Language::Rust => DEFAULT_RUST_PACKAGE_NAME,
+            Language::Dart => DEFAULT_DART_PACKAGE_NAME,
+            Language::Go => DEFAULT_GO_PACKAGE_NAME,
+            Language::Python => DEFAULT_PYTHON_PACKAGE_NAME,
+            Language::TypeScript => DEFAULT_TYPESCRIPT_PACKAGE_NAME,
+        }
+    }
+
+    pub fn label(&self) -> &'static str {
+        match self {
+            Language::Rust => "Rust",
+            Language::Dart => "Dart",
+            Language::Go => "Go",
+            Language::Python => "Python",
+            Language::TypeScript => "TypeScript",
+        }
+    }
 }
 
 /// 生成指定语言的 SDK
-pub fn generate_sdk(models: &[Model], lang: &str, output_dir: &str) -> Result<()> {
+pub fn generate_sdk(
+    models: &[Model],
+    lang: &str,
+    output_dir: &str,
+    options: &GenerateOptions,
+) -> Result<()> {
     let language = Language::from_str(lang)?;
     let output_path = Path::new(output_dir);
 
@@ -128,6 +183,16 @@ pub fn generate_sdk(models: &[Model], lang: &str, output_dir: &str) -> Result<()
     let models_json = serde_json::to_string_pretty(&codegen_models)?;
     let models_json_literal = serde_json::to_string(&models_json)?;
     let models_json_literal_dart = models_json_literal.replace('$', r"\$");
+    let package_name = options
+        .package_name
+        .as_deref()
+        .unwrap_or_else(|| language.default_package_name());
+    let repository = options.repository.trim_end_matches('/');
+    let go_module_path = options.go_module.trim_end_matches('/');
+    let go_package_name = sanitize_go_package_name(package_name);
+    let repository_directory = sdk_repository_directory(&language);
+    let package_homepage = format!("{repository}/tree/main/{repository_directory}");
+    let package_issues = format!("{repository}/issues");
 
     // 准备模板数据
     let template_data = json!({
@@ -136,7 +201,15 @@ pub fn generate_sdk(models: &[Model], lang: &str, output_dir: &str) -> Result<()
         "models_json_literal_dart": models_json_literal_dart,
         "timestamp": chrono::Utc::now().to_rfc3339(),
         "model_count": models.len(),
-        "providers": crate::api::group_models_by_provider(models).keys().collect::<Vec<_>>()
+        "providers": crate::api::group_models_by_provider(models).keys().collect::<Vec<_>>(),
+        "package_name": package_name,
+        "package_version": options.package_version,
+        "repository": repository,
+        "repository_directory": repository_directory,
+        "package_homepage": package_homepage,
+        "package_issues": package_issues,
+        "go_module_path": go_module_path,
+        "go_package_name": go_package_name,
     });
 
     // 生成代码文件
@@ -152,6 +225,14 @@ pub fn generate_sdk(models: &[Model], lang: &str, output_dir: &str) -> Result<()
             &template_data,
         )?;
     }
+
+    generate_support_files(
+        &language,
+        output_path,
+        package_name,
+        &options.package_version,
+        go_module_path,
+    )?;
 
     Ok(())
 }
@@ -228,13 +309,13 @@ fn generate_code_files(
         }
         Language::Go => {
             let main_content = handlebars.render("main", data)?;
-            fs::write(output_path.join("main.go"), main_content)?;
+            fs::write(output_path.join("llmmeta.go"), main_content)?;
 
             let models_content = handlebars.render("models", data)?;
             fs::write(output_path.join("models.go"), models_content)?;
         }
         Language::Python => {
-            let src_dir = output_path.join("src").join("llm_models");
+            let src_dir = output_path.join("src").join(PYTHON_IMPORT_PACKAGE_NAME);
             fs::create_dir_all(&src_dir)?;
 
             let init_content = handlebars.render("init", data)?;
@@ -259,6 +340,79 @@ fn generate_code_files(
     }
 
     Ok(())
+}
+
+fn generate_support_files(
+    language: &Language,
+    output_path: &Path,
+    package_name: &str,
+    package_version: &str,
+    go_module_path: &str,
+) -> Result<()> {
+    fs::write(
+        output_path.join("README.md"),
+        package_readme(language, package_name, package_version, go_module_path),
+    )?;
+    fs::write(
+        output_path.join("CHANGELOG.md"),
+        format!("# Changelog\n\n## {package_version}\n\n- Generated models.dev SDK package.\n"),
+    )?;
+    fs::write(output_path.join("LICENSE"), mit_license())?;
+
+    Ok(())
+}
+
+fn package_readme(
+    language: &Language,
+    package_name: &str,
+    package_version: &str,
+    go_module_path: &str,
+) -> String {
+    let install = match language {
+        Language::Rust => {
+            format!("```toml\n[dependencies]\n{package_name} = \"{package_version}\"\n```")
+        }
+        Language::Dart => {
+            format!("```yaml\ndependencies:\n  {package_name}: ^{package_version}\n```")
+        }
+        Language::Go => format!("```sh\ngo get {go_module_path}\n```"),
+        Language::Python => format!("```sh\npip install {package_name}\n```"),
+        Language::TypeScript => format!("```sh\nnpm install {package_name}\n```"),
+    };
+
+    format!(
+        "# {package_name}\n\nGenerated {language} SDK for models.dev LLM metadata.\n\n## Install\n\n{install}\n\n## Usage\n\nUse the exported model list and helper functions to query providers, modalities, pricing, reasoning support, function calling support, and open-weight status.\n",
+        language = language.label()
+    )
+}
+
+fn mit_license() -> &'static str {
+    "MIT License\n\nCopyright (c) LLM Meta contributors\n\nPermission is hereby granted, free of charge, to any person obtaining a copy\nof this software and associated documentation files (the \"Software\"), to deal\nin the Software without restriction, including without limitation the rights\nto use, copy, modify, merge, publish, distribute, sublicense, and/or sell\ncopies of the Software, and to permit persons to whom the Software is\nfurnished to do so, subject to the following conditions:\n\nThe above copyright notice and this permission notice shall be included in all\ncopies or substantial portions of the Software.\n\nTHE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR\nIMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,\nFITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE\nAUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER\nLIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,\nOUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE\nSOFTWARE.\n"
+}
+
+fn sdk_repository_directory(language: &Language) -> &'static str {
+    match language {
+        Language::Rust => "sdks/rust",
+        Language::Dart => "sdks/dart",
+        Language::Go => "sdks/go",
+        Language::Python => "sdks/python",
+        Language::TypeScript => "sdks/typescript",
+    }
+}
+
+fn sanitize_go_package_name(name: &str) -> String {
+    let mut output = String::new();
+    for character in name.chars() {
+        if character.is_ascii_alphanumeric() || character == '_' {
+            output.push(character);
+        }
+    }
+
+    if output.is_empty() || output.as_bytes()[0].is_ascii_digit() {
+        output.insert_str(0, "llm");
+    }
+
+    output.to_ascii_lowercase()
 }
 
 fn generate_package_file(

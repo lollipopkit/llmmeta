@@ -112,7 +112,7 @@ from typing import List, Optional
 
 from .models import Model, Provider, MODELS
 
-__version__ = "0.1.0"
+__version__ = "{{package_version}}"
 __all__ = ["Model", "Provider", "MODELS", "get_all_models", "get_models_by_provider",
            "get_models_by_modality", "get_function_calling_models", "get_reasoning_models",
            "get_open_source_models", "get_models_sorted_by_price", "search_models",
@@ -179,8 +179,8 @@ def get_model_by_id(model_id: str) -> Optional[Model]:
 "#;
 
 pub const PYPROJECT_TEMPLATE: &str = r#"[project]
-name = "llm-models"
-version = "0.1.0"
+name = "{{package_name}}"
+version = "{{package_version}}"
 description = "LLM models data from models.dev"
 readme = "README.md"
 license = { text = "MIT" }
@@ -203,9 +203,9 @@ requires-python = ">=3.8"
 dependencies = []
 
 [project.urls]
-Homepage = "https://github.com/your-username/llm-models-python"
-Repository = "https://github.com/your-username/llm-models-python.git"
-Issues = "https://github.com/your-username/llm-models-python/issues"
+Homepage = "{{package_homepage}}"
+Repository = "{{repository}}"
+Issues = "{{package_issues}}"
 
 [build-system]
 requires = ["hatchling"]

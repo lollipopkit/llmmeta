@@ -129,12 +129,17 @@ pub fn get_open_source_models() -> Vec<&'static Model> {
 "#;
 
 pub const CARGO_TEMPLATE: &str = r#"[package]
-name = "llm-models"
-version = "0.1.0"
+name = "{{package_name}}"
+version = "{{package_version}}"
 edition = "2021"
 description = "LLM models data from models.dev"
 license = "MIT"
-repository = "https://github.com/your-username/llm-models-rust"
+repository = "{{repository}}"
+homepage = "{{package_homepage}}"
+documentation = "https://docs.rs/{{package_name}}"
+readme = "README.md"
+keywords = ["llm", "ai", "models", "metadata"]
+categories = ["api-bindings", "data-structures"]
 
 [dependencies]
 serde = { version = "1.0", features = ["derive"] }

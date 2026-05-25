@@ -228,13 +228,16 @@ export function getLargestContextModels(limit: number = 10): Model[] {
 "#;
 
 pub const PACKAGE_TEMPLATE: &str = r#"{
-  "name": "llm-models",
-  "version": "0.1.0",
+  "name": "{{package_name}}",
+  "version": "{{package_version}}",
   "description": "LLM models data from models.dev",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "files": [
-    "dist/**/*"
+    "dist/**/*",
+    "README.md",
+    "CHANGELOG.md",
+    "LICENSE"
   ],
   "scripts": {
     "build": "tsc",
@@ -253,12 +256,13 @@ pub const PACKAGE_TEMPLATE: &str = r#"{
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/your-username/llm-models-typescript.git"
+    "url": "git+{{repository}}.git",
+    "directory": "{{repository_directory}}"
   },
   "bugs": {
-    "url": "https://github.com/your-username/llm-models-typescript/issues"
+    "url": "{{package_issues}}"
   },
-  "homepage": "https://github.com/your-username/llm-models-typescript#readme",
+  "homepage": "{{package_homepage}}#readme",
   "devDependencies": {
     "typescript": "^5.0.0"
   }

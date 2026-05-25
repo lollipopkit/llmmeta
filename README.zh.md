@@ -18,7 +18,7 @@ sdks/python
 sdks/typescript
 ```
 
-你可以按需 vendor 对应目录、复制到项目中，或通过包管理器/Git 工具引用本仓库。
+你可以按需 vendor 对应目录、复制到项目中，也可以把生成后的包目录发布到对应 registry。
 
 ### Rust
 
@@ -26,8 +26,10 @@ sdks/typescript
 
 ```toml
 [dependencies]
-llm-models = { path = "sdks/rust" }
+llm-models = "0.1"
 ```
+
+生成的 `sdks/rust/Cargo.toml` 包含 crates.io 发布元数据，可在该目录执行 `cargo publish`。
 
 ```rust
 use llm_models::{get_function_calling_models, get_models_by_modality};
@@ -64,7 +66,7 @@ print(cheapest.name, cheapest.provider.name)
 把 `sdks/typescript` 作为本地 package 使用：
 
 ```sh
-npm install ./sdks/typescript
+npm install llm-models
 ```
 
 ```ts
@@ -82,15 +84,30 @@ console.log(largestContext.map((model) => model.name));
 把 `sdks/go` 作为 Go module 使用：
 
 ```sh
-cd sdks/go
-go test ./...
+go get github.com/lollipopkit/llmmeta/sdks/go
 ```
 
-当前生成的 Go SDK 使用 `main` package，最直接的使用方式是把生成文件 vendor 或复制到你的 Go 项目，然后调用 `GetAllModels`、`GetModelsByProvider`、`GetModelsSortedByPrice` 等辅助函数。
+生成的 Go SDK 是可 import 的库包。默认 module path 是 `github.com/lollipopkit/llmmeta/sdks/go`；生成时可以用 `--go-module` 覆盖。
 
 ```go
-models := GetModelsByModality("image")
-fmt.Println(len(models))
+package main
+
+import (
+    "fmt"
+
+    llmmeta "github.com/lollipopkit/llmmeta/sdks/go"
+)
+
+func main() {
+    models := llmmeta.GetModelsByModality("image")
+    fmt.Println(len(models))
+}
+```
+
+如果希望使用更短的 `import "xxx"`，生成时把 Go module path 设为 `xxx`：
+
+```sh
+cargo run -- generate --input models.json --lang go --output sdks/go --go-module xxx
 ```
 
 ### Dart
@@ -100,7 +117,7 @@ fmt.Println(len(models))
 ```yaml
 dependencies:
   llm_models:
-    path: sdks/dart
+    ^0.1.0
 ```
 
 ```dart
@@ -170,6 +187,7 @@ cargo run -- analyze --input models.json --open-source --sort-by-price
 ```sh
 cargo run -- generate --input models.json --lang rust --output sdks/rust
 cargo run -- generate --input models.json --lang python --output sdks/python
+cargo run -- generate --input models.json --lang go --output sdks/go --go-module github.com/lollipopkit/llmmeta/sdks/go
 ```
 
 支持的语言参数：
@@ -181,6 +199,15 @@ cargo run -- generate --input models.json --lang python --output sdks/python
 - `typescript` 或 `ts`
 
 当模型数据或生成的 SDK 文件发生变化时，workflow 会把 `models.json` 和 `sdks/` 合并为一个 commit 提交到 `main`。
+
+发布元数据可在生成时覆盖：
+
+```sh
+cargo run -- generate --input models.json --lang typescript --output sdks/typescript \
+  --package-name @your-scope/llm-models \
+  --package-version 0.1.0 \
+  --repository https://github.com/your-org/llmmeta
+```
 
 ## 开发
 
@@ -194,6 +221,12 @@ make ci
 
 ```sh
 make verify-generated
+```
+
+执行面向 registry 的发布 dry-run：
+
+```sh
+make verify-publish-generated
 ```
 
 临时生成文件默认写入 `/private/tmp/llmmeta`。可以覆盖该路径：
