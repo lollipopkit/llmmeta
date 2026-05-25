@@ -212,5 +212,5 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/llm_models"]
+packages = ["src/{{python_import_package_name}}"]
 "#;

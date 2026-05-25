@@ -151,7 +151,7 @@ final List<Model> models = _loadModels();
 pub const LIB_TEMPLATE: &str = r#"/// LLM Models SDK for Dart
 /// Generated from models.dev at: {{timestamp}}
 
-library llm_models;
+library {{dart_library_name}};
 
 export 'models.dart';
 

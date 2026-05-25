@@ -12,12 +12,14 @@ mod templates;
 pub const DEFAULT_PACKAGE_VERSION: &str = "0.1.0";
 pub const DEFAULT_REPOSITORY: &str = "https://github.com/lollipopkit/llmmeta";
 pub const DEFAULT_GO_MODULE: &str = "github.com/lollipopkit/llmmeta/sdks/go";
-pub const DEFAULT_RUST_PACKAGE_NAME: &str = "llm-models";
-pub const DEFAULT_DART_PACKAGE_NAME: &str = "llm_models";
+pub const DEFAULT_RUST_PACKAGE_NAME: &str = "llm-meta";
+pub const DEFAULT_DART_PACKAGE_NAME: &str = "llm_meta";
 pub const DEFAULT_GO_PACKAGE_NAME: &str = "llmmeta";
-pub const DEFAULT_PYTHON_PACKAGE_NAME: &str = "llm-models";
-pub const DEFAULT_TYPESCRIPT_PACKAGE_NAME: &str = "llm-models";
-pub const PYTHON_IMPORT_PACKAGE_NAME: &str = "llm_models";
+pub const DEFAULT_PYTHON_PACKAGE_NAME: &str = "llm-meta";
+pub const DEFAULT_TYPESCRIPT_PACKAGE_NAME: &str = "llm-meta";
+pub const DART_LIBRARY_FILE_NAME: &str = "llm_meta.dart";
+pub const DART_LIBRARY_NAME: &str = "llm_meta";
+pub const PYTHON_IMPORT_PACKAGE_NAME: &str = "llm_meta";
 
 /// SDK generation options that affect package publishing metadata.
 #[derive(Debug, Clone)]
@@ -183,12 +185,21 @@ pub fn generate_sdk(
     let models_json = serde_json::to_string_pretty(&codegen_models)?;
     let models_json_literal = serde_json::to_string(&models_json)?;
     let models_json_literal_dart = models_json_literal.replace('$', r"\$");
-    let package_name = options
-        .package_name
-        .as_deref()
-        .unwrap_or_else(|| language.default_package_name());
-    let repository = options.repository.trim_end_matches('/');
-    let go_module_path = options.go_module.trim_end_matches('/');
+    let package_name = match options.package_name.as_deref().map(str::trim) {
+        Some("") => {
+            eprintln!(
+                "package name is empty; using default `{}`",
+                language.default_package_name()
+            );
+            language.default_package_name()
+        }
+        Some(value) => value,
+        None => language.default_package_name(),
+    };
+    let repository = trimmed_or_default(&options.repository, DEFAULT_REPOSITORY, "repository")
+        .trim_end_matches('/');
+    let go_module_path = trimmed_or_default(&options.go_module, DEFAULT_GO_MODULE, "go module")
+        .trim_end_matches('/');
     let go_package_name = sanitize_go_package_name(package_name);
     let repository_directory = sdk_repository_directory(&language);
     let package_homepage = format!("{repository}/tree/main/{repository_directory}");
@@ -210,6 +221,8 @@ pub fn generate_sdk(
         "package_issues": package_issues,
         "go_module_path": go_module_path,
         "go_package_name": go_package_name,
+        "dart_library_name": DART_LIBRARY_NAME,
+        "python_import_package_name": PYTHON_IMPORT_PACKAGE_NAME,
     });
 
     // 生成代码文件
@@ -302,7 +315,7 @@ fn generate_code_files(
             fs::create_dir_all(&lib_dir)?;
 
             let lib_content = handlebars.render("lib", data)?;
-            fs::write(lib_dir.join("llm_models.dart"), lib_content)?;
+            fs::write(lib_dir.join(DART_LIBRARY_FILE_NAME), lib_content)?;
 
             let models_content = handlebars.render("models", data)?;
             fs::write(lib_dir.join("models.dart"), models_content)?;
@@ -397,6 +410,16 @@ fn sdk_repository_directory(language: &Language) -> &'static str {
         Language::Go => "sdks/go",
         Language::Python => "sdks/python",
         Language::TypeScript => "sdks/typescript",
+    }
+}
+
+fn trimmed_or_default<'a>(value: &'a str, default: &'static str, label: &str) -> &'a str {
+    let trimmed = value.trim();
+    if trimmed.is_empty() {
+        eprintln!("{label} is empty; using default `{default}`");
+        default
+    } else {
+        trimmed
     }
 }
 

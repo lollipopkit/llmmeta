@@ -26,13 +26,13 @@ sdks/typescript
 
 ```toml
 [dependencies]
-llm-models = "0.1"
+llm-meta = "0.1"
 ```
 
 生成的 `sdks/rust/Cargo.toml` 包含 crates.io 发布元数据，可在该目录执行 `cargo publish`。
 
 ```rust
-use llm_models::{get_function_calling_models, get_models_by_modality};
+use llm_meta::{get_function_calling_models, get_models_by_modality};
 
 fn main() {
     let image_models = get_models_by_modality("image");
@@ -52,10 +52,10 @@ pip install ./sdks/python
 ```
 
 ```python
-import llm_models
+import llm_meta
 
-image_models = llm_models.get_models_by_modality("image")
-cheapest = llm_models.get_models_sorted_by_price()[0]
+image_models = llm_meta.get_models_by_modality("image")
+cheapest = llm_meta.get_models_sorted_by_price()[0]
 
 print(len(image_models))
 print(cheapest.name, cheapest.provider.name)
@@ -63,14 +63,14 @@ print(cheapest.name, cheapest.provider.name)
 
 ### TypeScript
 
-把 `sdks/typescript` 作为本地 package 使用：
+从 npm 安装 `llm-meta`：
 
 ```sh
-npm install llm-models
+npm install llm-meta
 ```
 
 ```ts
-import { getModelsByProvider, getLargestContextModels } from "llm-models";
+import { getModelsByProvider, getLargestContextModels } from "llm-meta";
 
 const openAIModels = getModelsByProvider("OpenAI");
 const largestContext = getLargestContextModels(5);
@@ -116,12 +116,12 @@ cargo run -- generate --input models.json --lang go --output sdks/go --go-module
 
 ```yaml
 dependencies:
-  llm_models:
+  llm_meta:
     ^0.1.0
 ```
 
 ```dart
-import 'package:llm_models/llm_models.dart';
+import 'package:llm_meta/llm_meta.dart';
 
 void main() {
   final imageModels = getModelsByModality('image');
@@ -204,7 +204,7 @@ cargo run -- generate --input models.json --lang go --output sdks/go --go-module
 
 ```sh
 cargo run -- generate --input models.json --lang typescript --output sdks/typescript \
-  --package-name @your-scope/llm-models \
+  --package-name @your-scope/llm-meta \
   --package-version 0.1.0 \
   --repository https://github.com/your-org/llmmeta
 ```
