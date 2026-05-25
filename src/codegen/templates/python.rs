@@ -115,7 +115,8 @@ from .models import Model, Provider, MODELS
 __version__ = "0.1.0"
 __all__ = ["Model", "Provider", "MODELS", "get_all_models", "get_models_by_provider",
            "get_models_by_modality", "get_function_calling_models", "get_reasoning_models",
-           "get_open_source_models", "get_models_sorted_by_price"]
+           "get_open_source_models", "get_models_sorted_by_price", "search_models",
+           "get_providers", "get_model_by_id"]
 
 
 def get_all_models() -> List[Model]:

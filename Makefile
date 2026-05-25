@@ -1,6 +1,6 @@
 SHELL := /bin/sh
 
-TMP_DIR ?= /private/tmp/llmmeta
+TMP_DIR ?= $(or $(TMPDIR),$(TMP),/tmp)/llmmeta
 MODELS_JSON ?= $(TMP_DIR)/models.json
 NPM_CACHE ?= $(TMP_DIR)/npm-cache
 
@@ -29,22 +29,23 @@ fetch:
 	mkdir -p $(TMP_DIR)
 	cargo run -- fetch --output $(MODELS_JSON)
 
-generate-rust: fetch
+generate-rust:
 	cargo run -- generate --input $(MODELS_JSON) --lang rust --output $(TMP_DIR)/rust
 
-generate-python: fetch
+generate-python:
 	cargo run -- generate --input $(MODELS_JSON) --lang python --output $(TMP_DIR)/python
 
-generate-go: fetch
+generate-go:
 	cargo run -- generate --input $(MODELS_JSON) --lang go --output $(TMP_DIR)/go
 
-generate-dart: fetch
+generate-dart:
 	cargo run -- generate --input $(MODELS_JSON) --lang dart --output $(TMP_DIR)/dart
 
-generate-typescript: fetch
+generate-typescript:
 	cargo run -- generate --input $(MODELS_JSON) --lang typescript --output $(TMP_DIR)/typescript
 
-generate-all: generate-rust generate-python generate-go generate-dart generate-typescript
+generate-all: fetch
+	$(MAKE) generate-rust generate-python generate-go generate-dart generate-typescript
 
 verify-generated: generate-all
 	cargo test --manifest-path $(TMP_DIR)/rust/Cargo.toml

@@ -123,13 +123,10 @@ async fn main() -> Result<()> {
             });
 
             // 应用排序
-            let result_models = if *sort_by_price {
+            let result_models: Vec<&Model> = if *sort_by_price {
                 api::sort_by_price(&filtered_models)
-                    .into_iter()
-                    .cloned()
-                    .collect()
             } else {
-                filtered_models
+                filtered_models.iter().collect()
             };
 
             // 显示结果
@@ -144,7 +141,7 @@ async fn main() -> Result<()> {
     Ok(())
 }
 
-fn display_models(models: &[Model], format: &str) -> Result<()> {
+fn display_models(models: &[&Model], format: &str) -> Result<()> {
     match format {
         "json" => {
             println!("{}", serde_json::to_string_pretty(models)?);
@@ -222,21 +219,18 @@ fn display_models(models: &[Model], format: &str) -> Result<()> {
     Ok(())
 }
 
-fn display_grouped_models(models: &[Model], format: &str) -> Result<()> {
+fn display_grouped_models(models: &[&Model], format: &str) -> Result<()> {
     match format {
         "json" => {
-            let grouped = api::group_models_by_provider(models);
+            let grouped = group_model_refs_by_provider(models);
             println!("{}", serde_json::to_string_pretty(&grouped)?);
         }
         "table" => {
-            let grouped = api::group_models_by_provider(models);
+            let grouped = group_model_refs_by_provider(models);
 
             for (provider, provider_models) in grouped {
                 println!("\n=== {} ({} models) ===", provider, provider_models.len());
-                display_models(
-                    &provider_models.into_iter().cloned().collect::<Vec<_>>(),
-                    "table",
-                )?;
+                display_models(&provider_models, "table")?;
             }
         }
         _ => {
@@ -244,4 +238,19 @@ fn display_grouped_models(models: &[Model], format: &str) -> Result<()> {
         }
     }
     Ok(())
+}
+
+fn group_model_refs_by_provider<'a>(
+    models: &[&'a Model],
+) -> std::collections::HashMap<String, Vec<&'a Model>> {
+    let mut grouped = std::collections::HashMap::new();
+
+    for model in models {
+        grouped
+            .entry(model.provider.name.clone())
+            .or_insert_with(Vec::new)
+            .push(*model);
+    }
+
+    grouped
 }

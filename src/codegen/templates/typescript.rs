@@ -268,7 +268,7 @@ pub const PACKAGE_TEMPLATE: &str = r#"{
 pub const TSCONFIG_TEMPLATE: &str = r#"{
   "compilerOptions": {
     "target": "ES2020",
-    "module": "ES2020",
+    "module": "CommonJS",
     "moduleResolution": "node",
     "declaration": true,
     "outDir": "dist",

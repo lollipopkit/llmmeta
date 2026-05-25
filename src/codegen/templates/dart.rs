@@ -139,9 +139,9 @@ const String _modelsJson = {{{models_json_literal_dart}}};
 
 List<Model> _loadModels() {
   final decoded = jsonDecode(_modelsJson) as List<dynamic>;
-  return decoded
+  return List.unmodifiable(decoded
       .map((item) => Model.fromJson(item as Map<String, dynamic>))
-      .toList(growable: false);
+      .toList(growable: false));
 }
 
 /// All available models
